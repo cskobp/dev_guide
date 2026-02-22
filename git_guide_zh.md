@@ -241,5 +241,47 @@ git revert <commit_hash>
 當 `merge` 發生衝突時，編輯衝突檔案，尋找 `<<<<<<<`, `=======`, `>>>>>>>` 標記，手動選擇保留的內容後，再次 `git add` 並 `git commit`。
 
 ---
+
+## 10. 子模組 (Submodules)
+
+當你的專案需要包含並使用另一個 Git 儲存庫（例如第三方函式庫或共用元件），但又希望保持兩個專案的獨立性時，可以使用「子模組」(Submodule)。
+參考資源：[Git 工具 - Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules)
+
+### 10.1 新增子模組
+將另一個儲存庫加入為目前專案的子模組：
+```bash
+# 加入子模組，預設會放在與儲存庫同名的目錄下
+git submodule add <url>
+
+# 加入子模組並指定存放的資料夾路徑
+git submodule add <url> <path>
+```
+執行後會產生一個 `.gitmodules` 檔案，用來追蹤子模組的 URL 與本地目錄的對應關係。
+
+### 10.2 複製包含子模組的專案
+當你 clone 一個包含子模組的專案時，預設只會包含子模組的目錄，但裡面不會自動載入其檔案。
+```bash
+# 方法一：Clone 同時自動初始化並更新子模組（推薦）
+git clone --recurse-submodules <url>
+
+# 方法二：先 clone 主專案，然後手動初始化並更新子模組
+git clone <url>
+git submodule init    # 初始化本地設定檔
+git submodule update  # 提取資料並檢出父專案中列出的合適提交
+```
+
+### 10.3 更新子模組
+當你要獲取子模組專案的更新時：
+```bash
+# 抓取並合併子模組的最新修改（會去拉取該子模組預設分支的更新）
+git submodule update --remote
+
+# 或可以直接進入該子模組目錄，按照一般 Git 流程操作
+cd <submodule_dir>
+git fetch
+git merge origin/main
+```
+
+---
 > [!TIP]
 > 養成「小步提交」(Commit early, commit often) 的習慣，這能讓代碼回溯和團隊協作變得更加輕鬆。

@@ -239,6 +239,8 @@ $env:LLAMA_CACHE = "C:\path\to\your\cache"
 
 設定後，所有下載的模型、manifest 和其他暫存檔都會存放在該目錄下的 `llama.cpp` 子目錄中。
 
+---
+
 ## 7. 進階用法：多模型服務 (Advanced: Multi-Model Serving)
 
 `llama-server` 支援 **Router Mode**，允許同時管理多個模型，並根據請求動態加載/卸載模型。
@@ -322,4 +324,129 @@ curl http://localhost:8080/v1/chat/completions \
 
 ---
 
-更多詳細資訊請參考官方文檔：[llama.cpp Documentation](https://github.com/ggml-org/llama.cpp)
+## 8. Web UI 開發 (Web UI Development)
+
+`llama.cpp` 的 server 包含了一個基於 SvelteKit 的現代化 Web UI。如果您想修改或自定義 Web 介面，可以參考以下步驟。
+
+### 8.1 原始碼位置
+Web UI 的原始碼位於 `tools/server/webui` 目錄下。
+
+此專案使用以下技術棧：
+- **SvelteKit**: 前端框架
+- **TailwindCSS**: CSS 框架
+- **Vite**: 建置工具
+
+### 8.2 開發環境設置
+
+1.  **先決條件**: 確保您已安裝 [Node.js](https://nodejs.org/)。
+
+2.  **啟動後端 Server**:
+    在開發 Web UI 時，需要有一個運行中的 `llama-server` 作為後端 API。
+    ```bash
+    ./build/bin/llama-server -m your_model.gguf --port 8080
+    ```
+
+3.  **啟動前端開發伺服器**:
+    打開一個新的終端視窗，進入 webui 目錄並啟動開發模式：
+    ```bash
+    cd tools/server/webui
+    npm install
+    npm run dev
+    ```
+    
+    預設情況下，前端開發伺服器會由 Vite 啟動 (通常在 http://localhost:5173)，它會自動代理請求到 `http://localhost:8080` 的後端。
+
+### 8.3 建置與發布
+
+如果您修改了 Web UI 並希望將其整合回 `llama-server` 二進制檔案中：
+
+1.  **編譯前端**:
+    ```bash
+    cd tools/server/webui
+    npm run build
+    ```
+    此命令會生成靜態文件並壓縮為 `public/index.html.gz`。
+
+2.  **重新編譯 llama-server**:
+    回到專案根目錄，重新編譯 server 以包含新的 UI：
+    ```bash
+    cd ../../.. # 回到 llama.cpp 根目錄
+    cmake --build build --config Release -t llama-server
+    ```
+
+---
+
+## 9. Python 使用 (Python Usage)
+
+在 Python 中使用 `llama.cpp` 主要有兩種方式：
+
+### 9.1 方式一：使用 Python Bindings (llama-cpp-python)
+
+這是最直接的方式，將 `llama.cpp` 作為 Python 函式庫使用。最受歡迎的綁定是 `llama-cpp-python`。
+
+1.  **安裝**:
+    ```bash
+    pip install llama-cpp-python
+    ```
+    *(支援硬體加速安裝請參考該專案文檔，例如 `CMAKE_ARGS="-DGGML_METAL=on" pip install llama-cpp-python`)*
+
+2.  **基本使用**:
+    ```python
+    from llama_cpp import Llama
+
+    # 載入模型
+    llm = Llama(
+        model_path="path/to/model.gguf",
+        n_gpu_layers=-1, # 全部 offload 到 GPU
+        verbose=True
+    )
+
+    # 生成文字
+    output = llm("Q: Name the planets in the solar system? A: ", max_tokens=32, stop=["Q:", "\n"], echo=True)
+    print(output)
+    ```
+
+### 9.2 方式二：使用 OpenAI Python Client (配合 llama-server)
+
+如果您的 `llama-server` 已經在運行 (特別是 Router Mode 支援多模型時)，這是最推薦的方式。
+
+1.  **安裝 OpenAI SDK**:
+    ```bash
+    pip install openai
+    ```
+
+2.  **查詢可用模型 (Query Available Models)**:
+    
+    ```python
+    from openai import OpenAI
+
+    client = OpenAI(
+        base_url="http://localhost:8080/v1",
+        api_key="sk-no-key-required"
+    )
+
+    # 列出所有可用模型 (對應 Server 載入的模型或 Router Mode 的設定)
+    models = client.models.list()
+    
+    print("Available Models:")
+    for model in models.data:
+        print(f"- {model.id}")
+    ```
+
+3.  **進行對話 (Chat Completion)**:
+    
+    ```python
+    response = client.chat.completions.create(
+        model="llama3", # 指定剛才查詢到的模型 ID
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Hello!"}
+        ]
+    )
+    
+    print(response.choices[0].message.content)
+    ```
+
+---
+
+更多詳細資訊請參考 `tools/server/README-dev.md` 以及官方文檔：[llama.cpp Documentation](https://github.com/ggml-org/llama.cpp)
